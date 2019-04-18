@@ -1,17 +1,17 @@
 package memoryeventstore
 
 // TODO:
-//  - Make safe for concurrent use (mutex locks)
 //  - Make Store() transactional - If sent 5 events, but 3 event fails to store, then all
 //    events 1 and 2 should not be commited to the event store
-//  - Make AggregateEvents return an error when aggregate not found
 import (
 	"fmt"
+	"sync"
 
 	"github.com/fewstera/divesites/pkg/eventstore"
 )
 
 type EventStore struct {
+	sync.RWMutex
 	eventsByAggregateType map[string]eventsByAggregateId
 }
 
@@ -24,6 +24,9 @@ func New() *EventStore {
 }
 
 func (es *EventStore) Store(events []eventstore.Event) error {
+	es.Lock()
+	defer es.Unlock()
+
 	for i, event := range events {
 		byID, ok := es.eventsByAggregateType[event.GetAggregateType()]
 		if !ok {
@@ -51,5 +54,18 @@ func (es *EventStore) Store(events []eventstore.Event) error {
 }
 
 func (es *EventStore) AggregateEvents(aggregateType, aggregateID string) ([]eventstore.Event, error) {
-	return es.eventsByAggregateType[aggregateType][aggregateID], nil
+	es.RLock()
+	defer es.RUnlock()
+
+	byAggregateId, ok := es.eventsByAggregateType[aggregateType]
+	if !ok {
+		return nil, fmt.Errorf("no events for aggregate type '%s' found", aggregateType)
+	}
+
+	aggregateEvents, ok := byAggregateId[aggregateID]
+	if !ok {
+		return nil, fmt.Errorf("no events for aggregate id '%s' found", aggregateID)
+	}
+
+	return aggregateEvents, nil
 }
