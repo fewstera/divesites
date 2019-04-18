@@ -1,15 +1,15 @@
 package memoryeventstore
 
+// TODO:
+//  - Make safe for concurrent use (mutex locks)
+//  - Make Store() transactional - If sent 5 events, but 3 event fails to store, then all
+//    events 1 and 2 should not be commited to the event store
+//  - Make AggregateEvents return an error when aggregate not found
 import (
 	"fmt"
 
 	"github.com/fewstera/divesites/pkg/eventstore"
 )
-
-//type EventStore interface {
-//Store(events []Event) error
-//AggregateEvents(aggregateType, aggregateID string) []Event
-//}
 
 type EventStore struct {
 	eventsByAggregateType map[string]eventsByAggregateId
