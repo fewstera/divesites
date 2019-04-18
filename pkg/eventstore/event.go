@@ -1,6 +1,7 @@
 package eventstore
 
 type Event interface {
+	GetAggregateType() string
 	GetAggregateID() string
 	GetEventNumber() int
 	GetEventType() string
@@ -8,9 +9,11 @@ type Event interface {
 }
 
 type BaseEvent struct {
-	AggregateID string
-	EventNumber int
+	AggregateType string
+	AggregateID   string
+	EventNumber   int
 }
 
-func (e *BaseEvent) GetAggregateID() string { return e.AggregateID }
-func (e *BaseEvent) GetEventNumber() int    { return e.EventNumber }
+func (e *BaseEvent) GetAggregateType() string { return e.AggregateType }
+func (e *BaseEvent) GetAggregateID() string   { return e.AggregateID }
+func (e *BaseEvent) GetEventNumber() int      { return e.EventNumber }

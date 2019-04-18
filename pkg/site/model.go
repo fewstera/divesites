@@ -13,12 +13,15 @@ type Site struct {
 	changes []eventstore.Event
 }
 
+var Aggregate = "site"
+
 func New(id, name, location string, depth float32) *Site {
 	s := &Site{}
 
 	createdEvent := &CreatedEvent{}
 	createdEvent.AggregateID = id
-	createdEvent.EventNumber = 0
+	createdEvent.AggregateType = Aggregate
+	createdEvent.EventNumber = 1
 	createdEvent.Name = name
 	createdEvent.Location = location
 	createdEvent.Depth = depth
@@ -26,6 +29,10 @@ func New(id, name, location string, depth float32) *Site {
 	s.applyEvents(true, []eventstore.Event{createdEvent})
 
 	return s
+}
+
+func (s *Site) Apply(events []eventstore.Event) {
+	s.applyEvents(false, events)
 }
 
 func (s *Site) applyEvents(isNew bool, events []eventstore.Event) {
@@ -48,6 +55,6 @@ func (s *Site) UncommitedChanges() []eventstore.Event {
 	return s.changes
 }
 
-func (s *Site) Commit() {
+func (s *Site) ClearChanges() {
 	s.changes = nil
 }
