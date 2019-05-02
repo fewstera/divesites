@@ -20,6 +20,12 @@ func main() {
 		panic(fmt.Errorf("handling create command: %s", err))
 	}
 
+	siteId = uuid.New().String()
+	err = ch.Handle(&site.CreateCommand{siteId, "broke", "West Bay", 20})
+	if err != nil {
+		panic(fmt.Errorf("handling create command: %s", err))
+	}
+
 	s, err := siterepo.Get(siteId)
 	if err != nil {
 		panic(fmt.Errorf("fetching site: %s", err))

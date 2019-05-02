@@ -1,9 +1,7 @@
 package memoryeventstore
 
-// TODO:
-//  - Make Store() transactional - If sent 5 events, but 3 event fails to store, then all
-//    events 1 and 2 should not be commited to the event store
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -12,14 +10,16 @@ import (
 
 type EventStore struct {
 	sync.RWMutex
-	eventsByAggregateType map[string]eventsByAggregateId
+	eventsByAggregateType eventsByAggregateTypeMap
+	transactionBackupMap  eventsByAggregateTypeMap
 }
 
-type eventsByAggregateId map[string][]eventstore.Event
+type eventsByAggregateTypeMap map[string]eventsByAggregateIdMap
+type eventsByAggregateIdMap map[string][]eventstore.Event
 
 func New() *EventStore {
 	es := &EventStore{}
-	es.eventsByAggregateType = make(map[string]eventsByAggregateId)
+	es.eventsByAggregateType = make(eventsByAggregateTypeMap)
 	return es
 }
 
@@ -27,10 +27,13 @@ func (es *EventStore) Store(events []eventstore.Event) error {
 	es.Lock()
 	defer es.Unlock()
 
+	es.beginTransaction()
+	defer es.endTransaction()
+
 	for i, event := range events {
 		byID, ok := es.eventsByAggregateType[event.GetAggregateType()]
 		if !ok {
-			byID = make(eventsByAggregateId)
+			byID = make(eventsByAggregateIdMap)
 		}
 		aggregateEvents := byID[event.GetAggregateID()]
 
@@ -39,6 +42,7 @@ func (es *EventStore) Store(events []eventstore.Event) error {
 			lastCommitEventNumber = aggregateEvents[len(aggregateEvents)-1].GetEventNumber()
 		}
 		if event.GetEventNumber() != lastCommitEventNumber+1 {
+			es.rollbackTransaction()
 			return fmt.Errorf(
 				"event at index %d: invalid event number: expected %d, got %d",
 				i, lastCommitEventNumber+1, event.GetEventNumber(),
@@ -68,4 +72,37 @@ func (es *EventStore) AggregateEvents(aggregateType, aggregateID string) ([]even
 	}
 
 	return aggregateEvents, nil
+}
+
+func (es *EventStore) beginTransaction() error {
+	if es.transactionBackupMap != nil {
+		return errors.New("tried to start a new transaction but one already exists")
+	}
+
+	es.transactionBackupMap = make(eventsByAggregateTypeMap)
+	copyEventsByAggregateTypeMap(es.transactionBackupMap, es.eventsByAggregateType)
+
+	return nil
+}
+
+func (es *EventStore) endTransaction() {
+	fmt.Printf("\n\n%#v\n\n", es.eventsByAggregateType)
+	es.transactionBackupMap = nil
+}
+
+func (es *EventStore) rollbackTransaction() {
+	es.eventsByAggregateType = make(eventsByAggregateTypeMap)
+	copyEventsByAggregateTypeMap(es.eventsByAggregateType, es.transactionBackupMap)
+}
+
+func copyEventsByAggregateTypeMap(to, from eventsByAggregateTypeMap) {
+	for aggregateType, aggregateIDMap := range from {
+		newAggregateIDMap := make(eventsByAggregateIdMap)
+		to[aggregateType] = newAggregateIDMap
+
+		for aggregateID, events := range aggregateIDMap {
+			newAggregateIDMap[aggregateID] = make([]eventstore.Event, len(events))
+			copy(newAggregateIDMap[aggregateID], events)
+		}
+	}
 }
