@@ -4,32 +4,19 @@ import (
 	"fmt"
 
 	"github.com/fewstera/divesites/pkg/commandhandler"
+	"github.com/fewstera/divesites/pkg/delivery/web"
 	"github.com/fewstera/divesites/pkg/memoryeventstore"
 	"github.com/fewstera/divesites/pkg/site"
-	"github.com/google/uuid"
 )
 
 func main() {
 	es := memoryeventstore.New()
-	ch := commandhandler.New(es)
-	siterepo := site.NewRepository(es)
+	siteRepo := site.NewRepository(es)
+	ch := commandhandler.New(es, siteRepo)
 
-	siteId := uuid.New().String()
-	err := ch.Handle(&site.CreateCommand{siteId, "Baygitano", "West Bay", 20})
+	err := web.StartServer(":8080", ch, siteRepo)
 	if err != nil {
-		panic(fmt.Errorf("handling create command: %s", err))
+		panic(fmt.Errorf("starting web server: %s", err))
 	}
 
-	siteId = uuid.New().String()
-	err = ch.Handle(&site.CreateCommand{siteId, "broke", "West Bay", 20})
-	if err != nil {
-		panic(fmt.Errorf("handling create command: %s", err))
-	}
-
-	s, err := siterepo.Get(siteId)
-	if err != nil {
-		panic(fmt.Errorf("fetching site: %s", err))
-	}
-
-	fmt.Printf("%#v\n", s)
 }

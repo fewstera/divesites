@@ -86,7 +86,6 @@ func (es *EventStore) beginTransaction() error {
 }
 
 func (es *EventStore) endTransaction() {
-	fmt.Printf("\n\n%#v\n\n", es.eventsByAggregateType)
 	es.transactionBackupMap = nil
 }
 

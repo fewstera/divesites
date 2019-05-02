@@ -5,12 +5,21 @@ import (
 )
 
 type Site struct {
-	ID       string
-	Name     string
-	Location string
-	Depth    float32
+	ID       string   `json:"id"`
+	Version  int      `json:"version"`
+	Name     string   `json:"name"`
+	Location string   `json:"location"`
+	Depth    float32  `json:"depth"`
+	Reports  []Report `json:"reports"`
 
 	changes []eventstore.Event
+}
+
+type Report struct {
+	Reporter   string
+	Visibility *float32
+	Rating     int
+	Notes      *string
 }
 
 var Aggregate = "site"
@@ -31,6 +40,19 @@ func New(id, name, location string, depth float32) *Site {
 	return s
 }
 
+func (s *Site) AddReport(report Report) {
+	reportAddedEvent := &ReportAddedEvent{}
+	reportAddedEvent.AggregateID = s.ID
+	reportAddedEvent.AggregateType = Aggregate
+	reportAddedEvent.EventNumber = s.Version + 1
+	reportAddedEvent.Reporter = report.Reporter
+	reportAddedEvent.Visibility = report.Visibility
+	reportAddedEvent.Rating = report.Rating
+	reportAddedEvent.Notes = report.Notes
+
+	s.applyEvents(true, []eventstore.Event{reportAddedEvent})
+}
+
 func (s *Site) Apply(events []eventstore.Event) {
 	s.applyEvents(false, events)
 }
@@ -43,7 +65,18 @@ func (s *Site) applyEvents(isNew bool, events []eventstore.Event) {
 			s.Name = e.Name
 			s.Location = e.Location
 			s.Depth = e.Depth
+			s.Reports = []Report{}
+		case *ReportAddedEvent:
+			report := Report{
+				Reporter:   e.Reporter,
+				Visibility: e.Visibility,
+				Rating:     e.Rating,
+				Notes:      e.Notes,
+			}
+			s.Reports = append(s.Reports, report)
 		}
+
+		s.Version = event.GetEventNumber()
 	}
 
 	if isNew {

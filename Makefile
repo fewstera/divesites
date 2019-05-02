@@ -4,7 +4,7 @@ divesites: install-deps
 	go build -o divesites ./cmd/divesites/main.go
 
 .PHONY: run
-run: divesites
+run:
 	go run cmd/divesites/main.go
 
 .PHONY: install-deps

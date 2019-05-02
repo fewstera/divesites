@@ -1,31 +1,29 @@
 package commandhandler
 
 import (
-	"fmt"
-
 	"github.com/fewstera/divesites"
 	"github.com/fewstera/divesites/pkg/eventstore"
 	"github.com/fewstera/divesites/pkg/site"
 )
 
 type CommandHandler struct {
-	es eventstore.EventStore
+	es             eventstore.EventStore
+	siteRepository *site.Repository
 }
 
-func New(es eventstore.EventStore) *CommandHandler {
+func New(es eventstore.EventStore, siteRepository *site.Repository) *CommandHandler {
 	return &CommandHandler{
-		es: es,
+		es:             es,
+		siteRepository: siteRepository,
 	}
 }
 
 func (ch *CommandHandler) Handle(command divesites.Command) error {
 	switch c := command.(type) {
 	case *site.CreateCommand:
-		s := site.New(c.ID, c.Name, c.Location, c.Depth)
-		if err := ch.es.Store(s.UncommitedChanges()); err != nil {
-			return fmt.Errorf("commiting changes to event store: %s", err)
-		}
-		s.ClearChanges()
+		ch.handleSiteCreate(c)
+	case *site.AddReportCommand:
+		ch.handleSiteAddReport(c)
 	}
 
 	return nil
